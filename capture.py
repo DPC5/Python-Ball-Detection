@@ -13,6 +13,8 @@ Buggy and unstable as of now
 min_threshold_value = 50
 max_threshold_value = 150
 min_radius_threshold = 1
+circularity_tolerance = 0.7
+area_diff_tolerance = 150
 
 
 #TODO
@@ -31,6 +33,8 @@ def track_ball_by_shape(frame):
     global max_threshold_value
     global min_threshold_value
     global min_radius_threshold
+    global circularity_tolerance
+    global area_diff_tolerance
     
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -50,41 +54,48 @@ def track_ball_by_shape(frame):
     
 
     if contours:
-        for contour in contours:
+        # Find the contour with the maximum area
+        max_contour = max(contours, key=cv2.contourArea)
 
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-            if radius == 0 or radius < min_radius_threshold: 
-                continue  
-            center = (int(x), int(y))
-            radius = int(radius)
-
-
-            if radius != 0:
-                circularity = cv2.contourArea(contour) / (np.pi * radius ** 2)
-            else:
-                circularity = 0.0
+        (x, y), radius = cv2.minEnclosingCircle(max_contour)
+        if radius == 0 or radius < min_radius_threshold: 
+            return frame, contour_image
+        center = (int(x), int(y))
+        radius = int(radius)
 
 
-            if circularity > 0.2:
-                cv2.putText(frame, f"Circularity: {circularity:.2f}", (center[0], center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        if radius != 0:
+            circularity = cv2.contourArea(max_contour) / (np.pi * radius ** 2)
+        else:
+            circularity = 0.0
 
 
-            contour_area = cv2.contourArea(contour)
-            circle_area = np.pi * radius ** 2
-            area_diff = abs(circle_area - contour_area)
-
-            #Might need to change these
-            circularity_tolerance = 0.7
-            area_diff_tolerance = 150
+        if circularity > 0.2:
+            cv2.putText(frame, f"Circularity: {circularity:.2f}", (center[0], center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
 
-            if circularity > circularity_tolerance or area_diff < area_diff_tolerance:
-                print("Circle Center Coordinates:", center)
+        contour_area = cv2.contourArea(max_contour)
+        circle_area = np.pi * radius ** 2
+        area_diff = abs(circle_area - contour_area)
 
-                x, y, w, h = cv2.boundingRect(contour)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        #Might need to change these
+        # circularity_tolerance = 0.7
+        # area_diff_tolerance = 150
+
+
+        if (circularity > circularity_tolerance or area_diff < area_diff_tolerance):
+            # print("Circle Center Coordinates:", center)
+
+
+            x, y, w, h = cv2.boundingRect(max_contour)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
     
     return frame, contour_image
+
+
+
+#Really nice and cool live adjustments
 
 def update_maxThreshold(value):
     global max_threshold_value
@@ -98,6 +109,15 @@ def update_minRadius(value):
     global min_radius_threshold
     min_radius_threshold = value
 
+def update_area_diff_tolerance(value):
+    global area_diff_tolerance
+    area_diff_tolerance = value
+
+def update_circularity_tolerance(value):
+    global circularity_tolerance
+    circularity_tolerance = float(value/100)
+    print (circularity_tolerance)
+
 
 # Main function
 def main():
@@ -108,6 +128,9 @@ def main():
     cv2.createTrackbar('Min Threshold', 'Parameters', min_threshold_value, 255, update_maxThreshold)
     cv2.createTrackbar('Max Threshold', 'Parameters', max_threshold_value, 255, update_minThreshold)
     cv2.createTrackbar('Min Radius Threshold', 'Parameters', min_radius_threshold, 255, update_minRadius)
+    cv2.createTrackbar('Area Diff', 'Parameters', area_diff_tolerance, 255, update_area_diff_tolerance)
+    cv2.createTrackbar('Circularity Tolerance', 'Parameters', int(circularity_tolerance ), 100, update_circularity_tolerance)
+
 
 
     capture = cv2.VideoCapture(0)
