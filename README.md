@@ -7,4 +7,4 @@ Buggy and unstable as of now.
 
 # Demo
 
-![](https://github.com/Python-Ball-Detection/demo.gif)
+![](https://github.com/DPC5/Python-Ball-Detection/demo.gif)
