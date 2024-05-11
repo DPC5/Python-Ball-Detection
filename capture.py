@@ -10,11 +10,12 @@ Buggy and unstable as of now
 
 
 # Global variables for threshold values
-min_threshold_value = 50
-max_threshold_value = 150
-min_radius_threshold = 1
-circularity_tolerance = 0.7
-area_diff_tolerance = 150
+# Worked for a paper circle so thats a good start
+min_threshold_value = 38
+max_threshold_value = 64
+min_radius_threshold = 35
+circularity_tolerance = .59
+area_diff_tolerance = 92
 
 
 #TODO
@@ -53,45 +54,41 @@ def track_ball_by_shape(frame):
     cv2.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
     
 
-    if contours:
-        # Find the contour with the maximum area
-        max_contour = max(contours, key=cv2.contourArea)
+    best_contour = None
+    best_circularity = 0.0
 
-        (x, y), radius = cv2.minEnclosingCircle(max_contour)
+    for contour in contours:
+        (x, y), radius = cv2.minEnclosingCircle(contour)
         if radius == 0 or radius < min_radius_threshold: 
-            return frame, contour_image
-        center = (int(x), int(y))
-        radius = int(radius)
-
-
+            continue
+        
+        contour_area = cv2.contourArea(contour)
+        circle_area = np.pi * radius ** 2
+        area_diff = abs(circle_area - contour_area)
+        
         if radius != 0:
-            circularity = cv2.contourArea(max_contour) / (np.pi * radius ** 2)
+            circularity = cv2.contourArea(contour) / (np.pi * radius ** 2)
         else:
             circularity = 0.0
 
-
-        if circularity > 0.2:
-            cv2.putText(frame, f"Circularity: {circularity:.2f}", (center[0], center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
-
-        contour_area = cv2.contourArea(max_contour)
-        circle_area = np.pi * radius ** 2
-        area_diff = abs(circle_area - contour_area)
-
-        #Might need to change these
-        # circularity_tolerance = 0.7
-        # area_diff_tolerance = 150
+        if circularity > best_circularity and (circularity > circularity_tolerance or area_diff < area_diff_tolerance):
+            best_contour = contour
+            best_circularity = circularity
 
 
-        if (circularity > circularity_tolerance or area_diff < area_diff_tolerance):
-            # print("Circle Center Coordinates:", center)
+    if best_contour is not None:
+        if best_circularity >= 0.75:
+            (x, y), radius = cv2.minEnclosingCircle(best_contour)
+            center = (int(x), int(y))
+            radius = int(radius)
 
-
-            x, y, w, h = cv2.boundingRect(max_contour)
+            cv2.putText(frame, f"Circularity: {best_circularity:.2f}", (center[0], center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            x, y, w, h = cv2.boundingRect(best_contour)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
     
     return frame, contour_image
+
 
 
 
@@ -149,7 +146,7 @@ def main():
         cv2.imshow('Webcam', np.hstack([tracked_frame, contour_image]))
 
 
-        if cv2.waitKey(1) == ord('q'):
+        if cv2.waitKey(10) == ord('q'):
             break
 
 
